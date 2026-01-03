@@ -5,188 +5,281 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Search System</title>
     
-    <!-- Supabase JS -->
+    <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Scanner JS -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
     <style>
-        body { font-family: sans-serif; background: #f4f4f9; padding: 20px; max-width: 600px; margin: 0 auto; }
-        .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        :root {
+            --primary: #2563eb;
+            --bg: #f1f5f9;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --danger: #dc2626;
+            --success: #16a34a;
+        }
+
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+
+        .container { max-width: 600px; margin: 0 auto; }
+
+        /* Status Bar */
+        .status-bar {
+            background: #e2e8f0; padding: 10px; border-radius: 8px; margin-bottom: 20px;
+            display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem;
+        }
+        .dot { height: 10px; width: 10px; background: #ccc; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .dot.green { background: var(--success); box-shadow: 0 0 5px var(--success); }
+        .dot.red { background: var(--danger); }
+
+        /* Search Card */
+        .card { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
         
-        h2 { text-align: center; color: #333; margin-bottom: 20px; }
-        
-        .search-box { display: flex; gap: 10px; margin-bottom: 15px; }
-        input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
-        
-        button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .btn-search { background: #007bff; color: white; }
-        .btn-scan { background: #28a745; color: white; width: 100%; margin-top: 10px; }
-        
-        #reader { width: 100%; margin-top: 15px; display: none; border: 1px solid #ccc; }
-        
-        .result { border-top: 1px solid #eee; padding-top: 15px; margin-top: 15px; }
-        .item-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin-bottom: 10px; display: flex; gap: 10px; }
-        .item-img { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; background: #eee; }
-        .item-info { flex: 1; }
-        .balance { font-weight: bold; }
-        .low { color: red; }
-        .ok { color: green; }
-        .error { color: red; text-align: center; margin-top: 10px; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid #e2e8f0; }
+        .tab {
+            padding: 10px 15px; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 600; color: #64748b;
+        }
+        .tab.active { border-bottom-color: var(--primary); color: var(--primary); }
+
+        .input-wrapper { position: relative; margin-bottom: 10px; }
+        input {
+            width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; outline: none;
+        }
+        input:focus { border-color: var(--primary); }
+
+        .btn {
+            width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px; color: white;
+        }
+        .btn-primary { background: var(--primary); }
+        .btn-scan { background: #0f172a; }
+        .btn:active { transform: scale(0.98); }
+
+        /* Scanner */
+        #reader { width: 100%; margin-top: 15px; display: none; border-radius: 8px; overflow: hidden; border: 2px solid var(--primary); }
+
+        /* Results */
+        .results { margin-top: 20px; display: grid; gap: 15px; }
+        .item {
+            background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px;
+            display: flex; gap: 15px; align-items: center; animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; } }
+
+        .img { width: 70px; height: 70px; border-radius: 8px; object-fit: cover; background: #f1f5f9; }
+        .info h3 { margin: 0 0 5px 0; font-size: 1.1rem; }
+        .meta { font-size: 0.85rem; color: #64748b; margin-bottom: 5px; }
+        .stock { font-weight: bold; font-size: 0.9rem; }
+        .stock.low { color: var(--danger); }
+        .stock.ok { color: var(--success); }
+
+        .error-msg { background: #fee2e2; color: #991b1b; padding: 15px; border-radius: 8px; border: 1px solid #fca5a5; }
+        .loading { text-align: center; color: #64748b; padding: 20px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>📦 Stock Search</h2>
-
-    <div class="search-box">
-        <input type="text" id="barcodeInput" placeholder="Enter Barcode..." onkeypress="handleEnter(event)">
-        <button class="btn-search" onclick="searchBarcode()">Search</button>
-    </div>
-
-    <button class="btn-scan" onclick="toggleScan()">📷 Scan with Camera</button>
     
-    <div id="reader"></div>
-
-    <div id="results" class="result">
-        <p style="text-align: center; color: #777;">Waiting for search...</p>
+    <!-- Connection Status -->
+    <div class="status-bar">
+        <span id="status-text">Initializing System...</span>
+        <span class="dot" id="status-dot"></span>
     </div>
+
+    <div class="card">
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('barcode')" id="t-barcode">Barcode</div>
+            <div class="tab" onclick="switchTab('style')" id="t-style">Style Code</div>
+        </div>
+
+        <!-- Barcode Panel -->
+        <div id="p-barcode">
+            <div class="input-wrapper">
+                <input type="text" id="in-barcode" placeholder="Scan or type barcode (e.g. 8901234567890)">
+            </div>
+            <button class="btn btn-primary" onclick="doSearch('barcode')">Search Database</button>
+            <button class="btn btn-scan" onclick="toggleScanner()">📷 Open Scanner</button>
+            <div id="reader"></div>
+        </div>
+
+        <!-- Style Panel -->
+        <div id="p-style" style="display:none;">
+            <div class="input-wrapper">
+                <input type="text" id="in-style" placeholder="Enter Style Code (e.g. CTS-001)">
+            </div>
+            <button class="btn btn-primary" onclick="doSearch('style')">Search Style</button>
+        </div>
+    </div>
+
+    <!-- Results Area -->
+    <div id="results-area" class="results">
+        <div style="text-align:center; color:#94a3b8;">Ready to search...</div>
+    </div>
+
 </div>
 
 <script>
-    // --- CREDENTIALS ---
-    const SUPABASE_URL = 'https://modywlizhthghxoxehoj.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_Yuj4wrOXwOMVwyz41Vs8IA_FkgpO6WJ';
-    const TABLE_NAME = 'stock_inventory';
+    // --- CONFIG ---
+    const URL = 'https://modywlizhthghxoxehoj.supabase.co';
+    const KEY = 'sb_publishable_Yuj4wrOXwOMVwyz41Vs8IA_FkgpO6WJ';
+    const TABLE = 'stock_inventory';
 
-    // --- GLOBAL VARIABLES ---
-    let supabase;
-    let html5QrCode;
+    // --- VARS ---
+    let supabase = null;
+    let html5QrCode = null;
     let isScanning = false;
 
-    // --- INITIALIZATION ---
-    // We check if supabase is already defined to avoid "already declared" errors on refresh
-    window.onload = function() {
-        if (typeof supabase === 'undefined') {
-            try {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                console.log("✅ Supabase Initialized");
-            } catch (e) {
-                alert("Error: " + e.message);
+    // --- INIT ---
+    window.addEventListener('DOMContentLoaded', async () => {
+        try {
+            // Create Client
+            supabase = window.supabase.createClient(URL, KEY);
+            
+            // Test Connection by checking table exists (Simple Select limit 1)
+            const { error } = await supabase.from(TABLE).select('id').limit(1);
+            
+            if (error) {
+                throw error; // If error here, it's connection or permission issue
             }
+
+            // Success
+            updateStatus("System Connected ✅", "green");
+            console.log("✅ Supabase Connected");
+
+        } catch (err) {
+            console.error("Init Error:", err);
+            updateStatus(`Connection Failed: ${err.message}`, "red");
+            document.getElementById('results-area').innerHTML = `<div class="error-msg"><strong>Setup Error:</strong><br>${err.message}<br><br>Ensure you ran the SQL script provided in the instructions.</div>`;
         }
-    };
 
-    // --- SEARCH FUNCTION ---
-    async function searchBarcode() {
-        const input = document.getElementById('barcodeInput').value.trim();
-        const resultsDiv = document.getElementById('results');
+        // Enter key support
+        document.getElementById('in-barcode').addEventListener('keyup', (e) => { if(e.key === 'Enter') doSearch('barcode'); });
+        document.getElementById('in-style').addEventListener('keyup', (e) => { if(e.key === 'Enter') doSearch('style'); });
+    });
 
-        if (!input) {
-            resultsDiv.innerHTML = '<p class="error">Please enter a barcode</p>';
+    function updateStatus(msg, color) {
+        document.getElementById('status-text').innerText = msg;
+        document.getElementById('status-dot').className = `dot ${color}`;
+    }
+
+    // --- TABS ---
+    function switchTab(tab) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(`t-${tab}`).classList.add('active');
+        
+        document.getElementById('p-barcode').style.display = tab === 'barcode' ? 'block' : 'none';
+        document.getElementById('p-style').style.display = tab === 'style' ? 'block' : 'none';
+
+        if(isScanning && tab !== 'barcode') stopScanner();
+    }
+
+    // --- SEARCH ---
+    async function doSearch(type) {
+        const resArea = document.getElementById('results-area');
+        let val, column, operator;
+
+        if (type === 'barcode') {
+            val = document.getElementById('in-barcode').value.trim();
+            column = 'barcode';
+            operator = 'eq';
+        } else {
+            val = document.getElementById('in-style').value.trim();
+            column = 'style_code';
+            operator = 'ilike'; // Case-insensitive partial
+        }
+
+        if (!val) {
+            resArea.innerHTML = '<div class="error-msg">Please enter a value to search.</div>';
             return;
         }
 
-        resultsDiv.innerHTML = '<p style="text-align:center;">Searching...</p>';
+        resArea.innerHTML = '<div class="loading">Searching Database...</div>';
 
         try {
-            // Query Database
-            const { data, error } = await supabase
-                .from(TABLE_NAME)
-                .select('*')
-                .eq('barcode', input);
-
-            if (error) {
-                console.error(error);
-                resultsDiv.innerHTML = `<p class="error">Database Error: ${error.message}</p>`;
-                return;
+            let query = supabase.from(TABLE).select('*');
+            
+            if (operator === 'ilike') {
+                query = query.ilike(column, `%${val}%`);
+            } else {
+                query = query.eq(column, val);
             }
+
+            const { data, error } = await query;
+
+            resArea.innerHTML = ''; // Clear loader
+
+            if (error) throw error;
 
             if (!data || data.length === 0) {
-                resultsDiv.innerHTML = '<p style="text-align:center; color:#777;">No item found.</p>';
+                resArea.innerHTML = '<div style="text-align:center; padding:20px;">No items found matching your criteria.</div>';
                 return;
             }
 
-            // Render Results
+            // Render
             let html = '';
             data.forEach(item => {
-                // Balance Logic
-                let balColor = item.balance > 0 ? 'ok' : 'low';
-                // Image Logic
-                let imgUrl = item.image_link || `https://picsum.photos/seed/${item.barcode}/60/60`;
-
+                const img = item.image_link || `https://picsum.photos/seed/${item.barcode}/100/100`;
+                const balClass = item.balance > 0 ? 'ok' : 'low';
+                
                 html += `
-                <div class="item-card">
-                    <img src="${imgUrl}" class="item-img">
-                    <div class="item-info">
-                        <div><strong>${item.name}</strong></div>
-                        <div style="font-size: 0.9em; color: #555;">
-                            Style: ${item.style_code} | Size: ${item.size} | Color: ${item.colour}
-                        </div>
-                        <div class="balance ${balColor}">Stock: ${item.balance}</div>
+                <div class="item">
+                    <img src="${img}" class="img" alt="Product">
+                    <div class="info">
+                        <h3>${item.name}</h3>
+                        <div class="meta">Barcode: ${item.barcode} | Style: ${item.style_code}</div>
+                        <div class="meta">Size: ${item.size} | Color: ${item.colour}</div>
+                        <div class="stock ${balClass}">Balance: ${item.balance} units</div>
                     </div>
                 </div>`;
             });
-
-            resultsDiv.innerHTML = html;
+            resArea.innerHTML = html;
 
         } catch (err) {
             console.error(err);
-            resultsDiv.innerHTML = `<p class="error">System Error: ${err.message}</p>`;
+            resArea.innerHTML = `<div class="error-msg"><strong>Search Error:</strong> ${err.message}</div>`;
         }
     }
 
-    function handleEnter(e) {
-        if (e.key === 'Enter') searchBarcode();
-    }
-
-    // --- SCANNER FUNCTION ---
-    async function toggleScan() {
-        const readerDiv = document.getElementById('reader');
-        const scanBtn = document.querySelector('.btn-scan');
+    // --- SCANNER ---
+    async function toggleScanner() {
+        const btn = document.querySelector('.btn-scan');
+        const rdr = document.getElementById('reader');
 
         if (isScanning) {
-            // Stop Scanner
-            if (html5QrCode) {
-                html5QrCode.stop().then(() => {
-                    html5QrCode.clear();
-                    isScanning = false;
-                    readerDiv.style.display = 'none';
-                    scanBtn.innerText = "📷 Scan with Camera";
-                }).catch(err => console.error(err));
-            }
+            stopScanner();
         } else {
-            // Start Scanner
-            // Check HTTPS requirement
-            if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                alert("Camera requires HTTPS or Localhost to work.");
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                alert("Camera needs HTTPS or Localhost.");
                 return;
             }
-
             try {
                 html5QrCode = new Html5Qrcode("reader");
-                await html5QrCode.start(
-                    { facingMode: "environment" }, // Back camera
-                    { fps: 10, qrbox: { width: 250, height: 250 } },
-                    onScanSuccess
-                );
+                await html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScan);
                 isScanning = true;
-                readerDiv.style.display = 'block';
-                scanBtn.innerText = "Stop Camera";
+                rdr.style.display = 'block';
+                btn.innerText = "⏹ Stop Camera";
             } catch (err) {
-                alert("Failed to start camera: " + err);
+                alert("Camera start failed: " + err);
             }
         }
     }
 
-    function onScanSuccess(decodedText) {
-        // Stop scanning automatically
-        toggleScan();
-        // Fill input
-        document.getElementById('barcodeInput').value = decodedText;
-        // Trigger search
-        searchBarcode();
+    function stopScanner() {
+        if(html5QrCode) {
+            html5QrCode.stop().then(() => {
+                html5QrCode.clear();
+                isScanning = false;
+                document.getElementById('reader').style.display = 'none';
+                document.querySelector('.btn-scan').innerText = "📷 Open Scanner";
+            }).catch(err => console.error(err));
+        }
+    }
+
+    function onScan(text) {
+        stopScanner();
+        document.getElementById('in-barcode').value = text;
+        switchTab('barcode'); // Ensure we are on barcode tab
+        doSearch('barcode');
     }
 
 </script>
