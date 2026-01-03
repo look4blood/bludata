@@ -2,691 +2,339 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Stock Search System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Stock Data Search System</title>
     
-    <!-- Supabase JS Client -->
+    <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- HTML5-QRCode Library for Scanning -->
+    <!-- Barcode Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
     <style>
         :root {
             --primary: #2563eb;
             --primary-dark: #1d4ed8;
-            --secondary: #64748b;
-            --bg: #f8fafc;
+            --bg: #f1f5f9;
             --surface: #ffffff;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
+            --text: #1e293b;
+            --text-light: #64748b;
             --border: #e2e8f0;
-            --success: #10b981;
             --danger: #ef4444;
+            --success: #10b981;
             --radius: 12px;
-            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
 
         body {
             background-color: var(--bg);
-            color: var(--text-main);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
+            color: var(--text);
+            padding: 1rem;
+            padding-bottom: 80px; /* Space for mobile */
         }
 
         /* --- Header --- */
         header {
-            background: var(--surface);
-            padding: 1rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 50;
+            text-align: center;
+            margin-bottom: 1.5rem;
         }
+        header h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+        header p { color: var(--text-light); font-size: 0.9rem; }
 
-        .brand {
-            font-weight: 700;
-            font-size: 1.25rem;
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .settings-btn {
-            background: none;
-            border: 1px solid var(--border);
-            padding: 6px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            color: var(--secondary);
-        }
-
-        /* --- Main Container --- */
-        main {
-            flex: 1;
-            max-width: 800px;
-            margin: 0 auto;
-            width: 100%;
-            padding: 1rem;
-        }
-
-        /* --- Search Control Panel --- */
-        .search-panel {
+        /* --- Search Card --- */
+        .card {
             background: var(--surface);
             border-radius: var(--radius);
-            box-shadow: var(--shadow);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
             padding: 1.5rem;
             margin-bottom: 1.5rem;
         }
 
+        /* --- Tabs --- */
         .tabs {
             display: flex;
-            gap: 1rem;
+            background: #e2e8f0;
+            padding: 4px;
+            border-radius: 8px;
             margin-bottom: 1rem;
-            border-bottom: 1px solid var(--border);
         }
-
         .tab {
-            padding: 0.5rem 1rem;
-            cursor: pointer;
-            color: var(--text-muted);
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            font-size: 0.9rem;
             font-weight: 600;
-            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            border-radius: 6px;
+            color: var(--text-light);
             transition: all 0.2s;
         }
-
         .tab.active {
+            background: white;
             color: var(--primary);
-            border-bottom-color: var(--primary);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
 
-        .input-group {
-            display: flex;
-            gap: 0.5rem;
-            position: relative;
-        }
-
+        /* --- Inputs & Buttons --- */
+        .input-group { margin-bottom: 1rem; }
+        
         input[type="text"] {
-            flex: 1;
-            padding: 12px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
+            width: 100%;
+            padding: 14px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
             font-size: 1rem;
             outline: none;
             transition: border-color 0.2s;
         }
-
-        input[type="text"]:focus {
-            border-color: var(--primary);
-        }
+        input[type="text"]:focus { border-color: var(--primary); }
 
         .btn {
-            padding: 12px 20px;
+            width: 100%;
+            padding: 14px;
             border: none;
-            border-radius: 8px;
-            font-weight: 600;
+            border-radius: var(--radius);
+            font-size: 1rem;
+            font-weight: 700;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: opacity 0.2s;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-scan { background: var(--text); color: white; margin-top: 0.5rem; }
+        .btn:active { opacity: 0.8; transform: scale(0.99); }
+
+        /* --- Scanner --- */
+        #reader { width: 100%; border-radius: var(--radius); overflow: hidden; margin-top: 1rem; display: none; }
+        
+        /* --- Results --- */
+        .result-item {
+            background: var(--surface);
+            padding: 1rem;
+            border-radius: var(--radius);
+            margin-bottom: 1rem;
             display: flex;
+            gap: 1rem;
             align-items: center;
-            justify-content: center;
-            gap: 6px;
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-dark);
-        }
-
-        .btn-scan {
-            background: var(--secondary);
-            color: white;
-        }
-
-        .btn-scan.scanning {
-            background: var(--danger);
-        }
-
-        /* --- Scanner Area --- */
-        #scanner-container {
-            margin-top: 1rem;
-            display: none; /* Hidden by default */
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
-            position: relative;
+            border: 1px solid var(--border);
+            animation: slideIn 0.3s ease-out;
         }
         
-        #reader {
-            width: 100%;
-        }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* --- Results Area --- */
-        .results-area {
-            display: grid;
-            gap: 1rem;
-        }
-
-        .stock-card {
-            background: var(--surface);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            padding: 1rem;
-            display: grid;
-            grid-template-columns: 100px 1fr; /* Image | Content */
-            gap: 1rem;
-            align-items: center;
-            animation: fadeIn 0.3s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .stock-img {
-            width: 100px;
-            height: 100px;
-            object-fit: cover;
+        .item-img {
+            width: 80px;
+            height: 80px;
             border-radius: 8px;
+            object-fit: cover;
             border: 1px solid var(--border);
-            background: #eee;
-            cursor: pointer;
+            flex-shrink: 0;
         }
 
-        .stock-info {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
+        .item-details { flex: 1; }
+        
+        .item-name { font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; }
+        .item-meta { font-size: 0.85rem; color: var(--text-light); margin-bottom: 6px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .badge { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
 
-        .stock-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 0.5rem;
-        }
-
-        .stock-name {
-            font-weight: 700;
-            font-size: 1.1rem;
-            color: var(--text-main);
-        }
-
-        .stock-badge {
-            background: var(--bg);
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            font-family: monospace;
-            border: 1px solid var(--border);
-        }
-
-        .detail-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            margin-bottom: 0.5rem;
-        }
-
-        .detail-item strong {
-            color: var(--text-main);
-            margin-right: 4px;
-        }
-
-        .balance-pill {
+        .balance-tag {
             display: inline-block;
             padding: 4px 10px;
             border-radius: 20px;
             font-size: 0.85rem;
             font-weight: 600;
-            background: #dcfce7;
-            color: #166534;
         }
+        .bal-ok { background: #dcfce7; color: #166534; }
+        .bal-low { background: #fee2e2; color: #991b1b; }
 
-        .balance-pill.low {
-            background: #fee2e2;
-            color: #991b1b;
-        }
+        .loading { text-align: center; padding: 2rem; color: var(--text-light); }
+        .error { text-align: center; padding: 2rem; color: var(--danger); }
+        .no-data { text-align: center; padding: 2rem; color: var(--text-light); }
 
-        .balance-pill.out {
-            background: #f3f4f6;
-            color: #6b7280;
-        }
-
-        /* --- Empty State & Loading --- */
-        .state-msg {
-            text-align: center;
-            padding: 3rem 1rem;
-            color: var(--text-muted);
-        }
-
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid var(--primary);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* --- Modal for Config --- */
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 100;
-        }
-        
-        .modal {
-            background: white;
-            padding: 2rem;
-            border-radius: var(--radius);
-            width: 90%;
-            max-width: 400px;
-        }
-
-        .form-group {
-            margin-bottom: 1rem;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-
-        /* --- Toast Notification --- */
-        .toast-container {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 200;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .toast {
-            background: #333;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            opacity: 0;
-            transition: opacity 0.3s;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-
-        .toast.visible { opacity: 1; }
-
-        /* --- Mobile Tweaks --- */
+        /* Mobile Specifics */
         @media (max-width: 600px) {
-            .stock-card {
-                grid-template-columns: 1fr; /* Stack on mobile */
-                text-align: center;
-            }
-            .stock-img {
-                margin: 0 auto;
-                width: 120px;
-                height: 120px;
-            }
-            .stock-header {
-                flex-direction: column;
-                align-items: center;
-                gap: 8px;
-            }
-            .detail-row {
-                justify-content: center;
-            }
+            .result-item { flex-direction: column; text-align: center; }
+            .item-img { width: 120px; height: 120px; }
+            .item-meta { justify-content: center; }
         }
     </style>
 </head>
 <body>
 
-    <!-- Configuration Modal (Hidden by default since we have defaults) -->
-    <div id="config-modal" class="modal-overlay" style="display: none;">
-        <div class="modal">
-            <h2>Setup Supabase</h2>
-            <p style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.9rem;">
-                Update your Supabase project credentials if needed.
-            </p>
-            <div class="form-group">
-                <label>Project URL</label>
-                <input type="text" id="sb-url" placeholder="https://xyz.supabase.co" style="width:100%">
+    <header>
+        <h1>Stock Search</h1>
+        <p>Scan or search inventory</p>
+    </header>
+
+    <div class="card">
+        <div class="tabs">
+            <div class="tab active" id="tab-barcode" onclick="switchTab('barcode')">Barcode</div>
+            <div class="tab" id="tab-style" onclick="switchTab('style')">Style Code</div>
+        </div>
+
+        <!-- Barcode Panel -->
+        <div id="panel-barcode">
+            <div class="input-group">
+                <input type="text" id="barcode-input" placeholder="Enter or scan barcode...">
             </div>
-            <div class="form-group">
-                <label>Anon Public Key</label>
-                <input type="text" id="sb-key" placeholder="eyJhbGciOiJIUzI1..." style="width:100%">
+            <button class="btn btn-primary" onclick="manualSearch()">Search Database</button>
+            <button class="btn btn-scan" id="scan-btn" onclick="toggleScanner()">
+                📷 Scan Barcode
+            </button>
+            <div id="reader"></div>
+        </div>
+
+        <!-- Style Code Panel -->
+        <div id="panel-style" style="display: none;">
+            <div class="input-group">
+                <input type="text" id="style-input" placeholder="Enter style code (e.g. CTS-001)...">
             </div>
-            <button class="btn btn-primary" onclick="saveConfig()" style="width:100%">Update & Connect</button>
+            <button class="btn btn-primary" onclick="styleSearch()">Search Style</button>
         </div>
     </div>
 
-    <header>
-        <div class="brand">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-            StockScan
-        </div>
-        <button class="settings-btn" onclick="openConfig()">⚙️ Config</button>
-    </header>
-
-    <main>
-        <!-- Search Panel -->
-        <section class="search-panel">
-            <div class="tabs">
-                <div class="tab active" onclick="switchTab('barcode')" id="tab-barcode">Barcode</div>
-                <div class="tab" onclick="switchTab('style')" id="tab-style">Style Code</div>
-            </div>
-
-            <!-- Barcode Controls -->
-            <div id="panel-barcode">
-                <div class="input-group">
-                    <input type="text" id="barcode-input" placeholder="Enter barcode number...">
-                    <button class="btn btn-primary" onclick="manualSearch()">Search</button>
-                    <button class="btn btn-scan" id="scan-btn" onclick="toggleScanner()">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path></svg>
-                        Scan
-                    </button>
-                </div>
-                <!-- Scanner UI -->
-                <div id="scanner-container">
-                    <div id="reader"></div>
-                </div>
-            </div>
-
-            <!-- Style Code Controls -->
-            <div id="panel-style" style="display: none;">
-                <div class="input-group">
-                    <input type="text" id="style-input" placeholder="Enter style code (e.g. CTS-001)...">
-                    <button class="btn btn-primary" onclick="manualStyleSearch()">Search</button>
-                </div>
-                <p style="margin-top: 8px; font-size: 0.85rem; color: var(--text-muted);">
-                    * Supports partial matches (e.g., "CTS") and is case-insensitive.
-                </p>
-            </div>
-        </section>
-
-        <!-- Results Section -->
-        <section id="results-container" class="results-area">
-            <div class="state-msg">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2" style="margin-bottom:1rem"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                <p>Enter a barcode or style code to search.</p>
-            </div>
-        </section>
-    </main>
-
-    <div id="toast-container" class="toast-container"></div>
+    <!-- Results Area -->
+    <div id="results-area"></div>
 
     <script>
-        // --- Default Credentials Set Here ---
-        const DEFAULT_SUPABASE_URL = 'https://modywlizhthghxoxehoj.supabase.co';
-        const DEFAULT_SUPABASE_KEY = 'sb_publishable_Yuj4wrOXwOMVwyz41Vs8IA_FkgpO6WJ';
-        // -----------------------------------
+        // --- CONFIGURATION ---
+        const SUPABASE_URL = 'https://modywlizhthghxoxehoj.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_Yuj4wrOXwOMVwyz41Vs8IA_FkgpO6WJ';
+        const TABLE_NAME = 'stock_inventory';
 
-        // --- State Management ---
-        let supabase = null;
-        let currentTab = 'barcode'; // 'barcode' or 'style'
-        let html5QrCode = null;
+        // --- INIT ---
+        let supabase;
+        let html5QrCode;
         let isScanning = false;
 
-        // --- Initialization ---
-        document.addEventListener('DOMContentLoaded', () => {
-            loadConfig();
-            
+        window.addEventListener('DOMContentLoaded', () => {
+            try {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                console.log("✅ Supabase Connected");
+            } catch (e) {
+                document.getElementById('results-area').innerHTML = `<div class="error">Connection Failed: ${e.message}</div>`;
+            }
+
             // Enter key listeners
             document.getElementById('barcode-input').addEventListener('keyup', (e) => {
-                if (e.key === 'Enter') manualSearch();
+                if(e.key === 'Enter') manualSearch();
             });
             document.getElementById('style-input').addEventListener('keyup', (e) => {
-                if (e.key === 'Enter') manualStyleSearch();
+                if(e.key === 'Enter') styleSearch();
             });
         });
 
-        // --- Configuration Logic ---
-        function loadConfig() {
-            const storedUrl = localStorage.getItem('sb_url');
-            const storedKey = localStorage.getItem('sb_key');
+        // --- TABS ---
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
 
-            // Use defaults if nothing is stored, otherwise use stored values
-            let url = storedUrl ? storedUrl : DEFAULT_SUPABASE_URL;
-            let key = storedKey ? storedKey : DEFAULT_SUPABASE_KEY;
-
-            // Pre-fill inputs with whatever we are using
-            document.getElementById('sb-url').value = url;
-            document.getElementById('sb-key').value = key;
-
-            // Connect immediately (Modal hidden by default)
-            initSupabase(url, key);
-        }
-
-        function openConfig() {
-            document.getElementById('config-modal').style.display = 'flex';
-        }
-
-        function saveConfig() {
-            const url = document.getElementById('sb-url').value.trim();
-            const key = document.getElementById('sb-key').value.trim();
-
-            if (!url || !key) {
-                showToast("Please enter both URL and Key");
-                return;
-            }
-
-            localStorage.setItem('sb_url', url);
-            localStorage.setItem('sb_key', key);
-            document.getElementById('config-modal').style.display = 'none';
-            initSupabase(url, key);
-            showToast("Configuration Saved");
-        }
-
-        function initSupabase(url, key) {
-            try {
-                supabase = window.supabase.createClient(url, key);
-                console.log("Supabase initialized");
-            } catch (error) {
-                showToast("Error initializing Supabase");
-                console.error(error);
-            }
-        }
-
-        // --- UI Interactions ---
-        function switchTab(tabName) {
-            currentTab = tabName;
+            document.getElementById('panel-barcode').style.display = tab === 'barcode' ? 'block' : 'none';
+            document.getElementById('panel-style').style.display = tab === 'style' ? 'block' : 'none';
             
             // Stop scanner if switching away
-            if (tabName !== 'barcode' && isScanning) {
-                stopScanner();
-            }
-
-            // Toggle Tab Styles
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.getElementById(`tab-${tabName}`).classList.add('active');
-
-            // Toggle Panels
-            document.getElementById('panel-barcode').style.display = tabName === 'barcode' ? 'block' : 'none';
-            document.getElementById('panel-style').style.display = tabName === 'style' ? 'block' : 'none';
-
+            if (isScanning && tab !== 'barcode') stopScanner();
+            
             // Clear results
-            document.getElementById('results-container').innerHTML = `
-                <div class="state-msg">
-                    <p>Enter a ${tabName} to search.</p>
-                </div>`;
+            document.getElementById('results-area').innerHTML = '';
         }
 
-        function showToast(message) {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.textContent = message;
-            container.appendChild(toast);
-            
-            // Trigger reflow
-            void toast.offsetWidth; 
-            toast.classList.add('visible');
-
-            setTimeout(() => {
-                toast.classList.remove('visible');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
-
-        // --- Search Logic ---
-
-        // 1. Manual Barcode Search
+        // --- SEARCH LOGIC ---
         async function manualSearch() {
-            const input = document.getElementById('barcode-input');
-            const query = input.value.trim();
-            if (!query) return showToast("Enter a barcode");
-            
-            await fetchStock({ column: 'barcode', value: query, operator: 'eq' });
+            const val = document.getElementById('barcode-input').value.trim();
+            if (!val) return alert("Please enter a barcode");
+            await fetchData('barcode', 'eq', val);
         }
 
-        // 2. Manual Style Code Search
-        async function manualStyleSearch() {
-            const input = document.getElementById('style-input');
-            const query = input.value.trim();
-            if (!query) return showToast("Enter a style code");
-
-            // Case-insensitive partial match: using 'ilike'
-            await fetchStock({ column: 'style_code', value: `%${query}%`, operator: 'ilike' });
+        async function styleSearch() {
+            const val = document.getElementById('style-input').value.trim();
+            if (!val) return alert("Please enter a style code");
+            // Partial match, case insensitive
+            await fetchData('style_code', 'ilike', `%${val}%`);
         }
 
-        async function fetchStock({ column, value, operator }) {
-            if (!supabase) return showToast("System not configured");
-
-            const container = document.getElementById('results-container');
-            container.innerHTML = '<div class="loader"></div>';
+        async function fetchData(column, operator, value) {
+            const area = document.getElementById('results-area');
+            area.innerHTML = '<div class="loading">Searching database...</div>';
 
             try {
-                let queryBuilder = supabase
-                    .from('stock_inventory')
-                    .select('*');
+                const { data, error } = await supabase
+                    .from(TABLE_NAME)
+                    .select('*')
+                    [operator](column, value); // Using bracket notation for dynamic operator (eq or ilike)
 
-                if (operator === 'ilike') {
-                    queryBuilder = queryBuilder.ilike(column, value);
-                } else {
-                    queryBuilder = queryBuilder.eq(column, value);
-                }
+                area.innerHTML = ''; // Clear loading
 
-                const { data, error } = await queryBuilder;
-
-                container.innerHTML = ''; // Clear loader
-
-                if (error) throw error;
-
-                if (data.length === 0) {
-                    container.innerHTML = `
-                        <div class="state-msg">
-                            <p>No results found.</p>
-                        </div>`;
+                if (error) {
+                    area.innerHTML = `<div class="error">Database Error: ${error.message}</div>`;
+                    console.error(error);
                     return;
                 }
 
+                if (!data || data.length === 0) {
+                    area.innerHTML = '<div class="no-data">No results found.</div>';
+                    return;
+                }
+
+                // Render items
                 data.forEach(item => {
-                    const card = createStockCard(item);
-                    container.appendChild(card);
+                    const div = document.createElement('div');
+                    div.className = 'result-item';
+                    
+                    // Determine Balance Color
+                    const balClass = item.balance > 0 ? 'bal-ok' : 'bal-low';
+                    // Fallback Image
+                    const imgSrc = item.image_link || `https://picsum.photos/seed/${item.barcode}/150/150`;
+
+                    div.innerHTML = `
+                        <img src="${imgSrc}" class="item-img" onclick="window.open('${imgSrc}', '_blank')" alt="Product">
+                        <div class="item-details">
+                            <div class="item-name">${item.name}</div>
+                            <div class="item-meta">
+                                <span class="badge">${item.barcode}</span>
+                                <span>Style: <strong>${item.style_code}</strong></span>
+                            </div>
+                            <div class="item-meta">
+                                <span>Color: ${item.colour}</span>
+                                <span>Size: ${item.size}</span>
+                            </div>
+                            <span class="balance-tag ${balClass}">Balance: ${item.balance}</span>
+                        </div>
+                    `;
+                    area.appendChild(div);
                 });
 
             } catch (err) {
-                console.error(err);
-                container.innerHTML = `
-                    <div class="state-msg" style="color:var(--danger)">
-                        <p>Error searching database.</p>
-                        <small>${err.message}</small>
-                    </div>`;
+                area.innerHTML = `<div class="error">System Error: ${err.message}</div>`;
             }
         }
 
-        function createStockCard(item) {
-            const div = document.createElement('div');
-            div.className = 'stock-card';
-
-            // Balance logic
-            let balanceClass = 'balance-pill';
-            if (item.balance === 0) balanceClass += ' out';
-            else if (item.balance < 10) balanceClass += ' low';
-
-            // Image fallback
-            const imgUrl = item.image_link || `https://picsum.photos/seed/${item.barcode}/200/200`;
-
-            div.innerHTML = `
-                <img src="${imgUrl}" alt="${item.name}" class="stock-img" onclick="window.open('${imgUrl}', '_blank')">
-                <div class="stock-info">
-                    <div class="stock-header">
-                        <div class="stock-name">${item.name}</div>
-                        <div class="stock-badge">#${item.barcode}</div>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <div class="detail-item"><strong>Style:</strong> ${item.style_code}</div>
-                        <div class="detail-item"><strong>Color:</strong> ${item.colour}</div>
-                        <div class="detail-item"><strong>Size:</strong> ${item.size}</div>
-                    </div>
-
-                    <div>
-                        <span class="${balanceClass}">Balance: ${item.balance}</span>
-                    </div>
-                </div>
-            `;
-            return div;
-        }
-
-        // --- Scanner Logic ---
+        // --- SCANNER LOGIC ---
         async function toggleScanner() {
             const btn = document.getElementById('scan-btn');
-            const container = document.getElementById('scanner-container');
+            const readerDiv = document.getElementById('reader');
 
             if (isScanning) {
                 stopScanner();
             } else {
-                // Start Scanner
+                // Check HTTPS/Localhost requirement
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    alert("Camera access requires HTTPS or Localhost.");
+                    return;
+                }
+
                 try {
                     html5QrCode = new Html5Qrcode("reader");
-                    
-                    // Check if https or localhost (required for camera)
-                    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                        alert("Camera requires HTTPS or Localhost to work.");
-                        return;
-                    }
-
-                    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-                    await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
-                    
+                    await html5QrCode.start(
+                        { facingMode: "environment" }, 
+                        { fps: 10, qrbox: { width: 250, height: 250 } }, 
+                        onScanSuccess
+                    );
                     isScanning = true;
-                    btn.classList.add('scanning');
-                    btn.innerHTML = 'Stop Scan';
-                    container.style.display = 'block';
-                    showToast("Camera started");
-
+                    btn.innerHTML = "⏹ Stop Camera";
+                    btn.style.background = "#ef4444";
+                    readerDiv.style.display = "block";
                 } catch (err) {
-                    console.error(err);
-                    showToast("Unable to start camera. Check permissions.");
+                    alert("Could not start camera: " + err);
                 }
             }
         }
@@ -697,31 +345,20 @@
                     html5QrCode.clear();
                     isScanning = false;
                     const btn = document.getElementById('scan-btn');
-                    const container = document.getElementById('scanner-container');
-                    
-                    btn.classList.remove('scanning');
-                    btn.innerHTML = `
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path></svg>
-                        Scan`;
-                    container.style.display = 'none';
-                }).catch(err => console.error("Failed to stop scanner", err));
+                    const readerDiv = document.getElementById('reader');
+                    btn.innerHTML = "📷 Scan Barcode";
+                    btn.style.background = "#1e293b";
+                    readerDiv.style.display = "none";
+                }).catch(err => console.error(err));
             }
         }
 
-        function onScanSuccess(decodedText, decodedResult) {
-            // Stop scanner
+        function onScanSuccess(decodedText) {
             stopScanner();
-            
-            // Auto fill
             const input = document.getElementById('barcode-input');
             input.value = decodedText;
-            
-            showToast(`Barcode Found: ${decodedText}`);
-            
-            // Auto search
-            manualSearch();
+            manualSearch(); // Auto search
         }
-
     </script>
 </body>
-  </html>
+</html>
